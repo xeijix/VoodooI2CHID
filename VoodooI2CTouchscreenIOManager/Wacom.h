@@ -28,7 +28,7 @@ typedef enum EPointerType
 // Use these masks with the capabilities field of a proximity
 // event to determine what fields in a Tablet Event are valid
 // for this device.
-#define		kTransducerDeviceIdBitMask 				0x0001      //NX_TABLET_CAPABILITY_DEVICEIDMASK
+#define		kTransducerDeviceIdBitMask 				    0x0001      //NX_TABLET_CAPABILITY_DEVICEIDMASK
 #define		kTransducerAbsXBitMask 						0x0002
 #define		kTransducerAbsYBitMask 						0x0004
 #define		kTransducerVendor1BitMask					0x0008
@@ -39,11 +39,16 @@ typedef enum EPointerType
 #define		kTransducerTiltYBitMask 					0x0100
 #define		kTransducerAbsZBitMask 						0x0200
 #define		kTransducerPressureBitMask		 			0x0400
-#define		kTransducerTangentialPressureBitMask 	0x0800
+#define		kTransducerTangentialPressureBitMask 	    0x0800
 #define		kTransducerOrientInfoBitMask 				0x1000
 #define		kTransducerRotationBitMask	 				0x2000
 
 
+#define     wcmGeneralStylus        0x0802
+#define     wcmAirbrush             0x0902
+#define     wcmGeneralMouse         0x0006
+#define     wcmProMouse             0x0004
+#define     wcmRotationStylus       0x0804
 
 /*****************************************************************************
 *	The following is a list of the old capability masks constant names and a

@@ -4,6 +4,12 @@
 //  Created by HY on 5/27/20.
 //  Copyright © 2020 Bitruvian. All rights reserved.
 //
+//  Installation:
+//      - Copy `VoodooI2CTouchscreenIOManager` executable to `/Applications/Utilities/VoodooI2CTouchscreenIOManager`
+//      - Copy `com.alexandred.VoodooI2CTouchscreenIOManager.plist` to `~/Library/LaunchAgents` (or `/System/Library/LaunchAgents` for all users)
+//      - `launchctl load /path/to/com.alexandred.VoodooI2CTouchscreenIOManager.plist` to test immediately
+//      - `launchctl list | grep VoodooI2CTouchscreenIOManager` to confirm that it's running
+//      Reference: https://www.launchd.info/
 //  References:
 //  Wacom Dev Guide: https://developer-docs.wacom.com/display/DevDocs/macOS+Developer%27s+Guide+to+the+Wacom+Tablet
 //
@@ -11,6 +17,7 @@
 //  TODO: add entering and leaving (if we have that info)
 //  TODO: add twist support
 //  TODO: add tilt support: I don't have a device with a stylus that reports tilt or twist, so I'm unsure how to format the values
+
 
 
 #import <Foundation/Foundation.h>
@@ -35,47 +42,6 @@ struct stylusSpec {
     double tilt_y; //# NOTE 0-1 (doesn't seem to differentiate -1 and 1)
 };
 
-
-static struct stylusSpec getStylusSpec() {
-    struct stylusSpec currentSpec = {false, 0,0,0,0};
-
-    //# REF: https://comp.sys.mac.programmer.help.narkive.com/bPLZZDuC/cfdictionarygetvalue-and-cfrelease
-    //# get properties for VoodooI2CTouchscreenHIDEventDriver;
-    CFMutableDictionaryRef regProperties;
-    IORegistryEntryCreateCFProperties(serviceObject, &regProperties, kCFAllocatorDefault, kNilOptions);
-       
-      
-    //# get stylus active
-    CFBooleanRef isActive_CFBoolRef = (CFBooleanRef)CFDictionaryGetValue(regProperties, CFSTR(vdStylusActive));
-    Boolean isActive = CFBooleanGetValue(isActive_CFBoolRef);
-    
-    currentSpec.isActive = isActive;
-    
-    if (!isActive) {
-        CFRelease(regProperties);
-        
-        return currentSpec;
-    }
-    
-    //CFShow(CFDictionaryGetValue(regProperties, CFSTR(vdStylusPressureKey)));
-       
-    //# get stylus pressure
-    CFNumberRef stylusPressure_CFNumberRef = (CFNumberRef)CFDictionaryGetValue(regProperties, CFSTR(vdStylusPressureKey));
-    int32_t stylusPressure;
-    CFNumberGetValue(stylusPressure_CFNumberRef, kCFNumberSInt32Type, &stylusPressure);
-    currentSpec.stylus_pressure = (stylusPressure * 1.0f)/65535;
-    
-    //# get barrel_pressure
-    CFNumberRef barrelPressure_CFNumberRef = (CFNumberRef)CFDictionaryGetValue(regProperties, CFSTR(vdBarrelPressureKey));
-    int32_t barrelPressure;
-    CFNumberGetValue(barrelPressure_CFNumberRef, kCFNumberSInt32Type, &barrelPressure);
-    currentSpec.barrel_pressure = (barrelPressure * 1.0f)/65535;
-    
-    printf("[Stylus Pressure: %f] [Barrel Pressure: %f]\n", currentSpec.stylus_pressure, currentSpec.barrel_pressure);
-    
-    CFRelease(regProperties);
-    return currentSpec;
-}
 
 
 static int cacheDevice() {
@@ -131,6 +97,57 @@ static int cacheDevice() {
     
 }
 
+static struct stylusSpec getStylusSpec() {
+    struct stylusSpec currentSpec = {false, 0,0,0,0};
+    
+    if (!serviceObject) {
+        if (!cacheDevice()) {
+            //# for some reason the device is not available, so we try to retrieve it again
+            
+            return currentSpec;
+        }
+    }
+    
+
+    //# REF: https://comp.sys.mac.programmer.help.narkive.com/bPLZZDuC/cfdictionarygetvalue-and-cfrelease
+    //# get properties for VoodooI2CTouchscreenHIDEventDriver;
+    CFMutableDictionaryRef regProperties;
+    IORegistryEntryCreateCFProperties(serviceObject, &regProperties, kCFAllocatorDefault, kNilOptions);
+       
+      
+    //# get stylus active
+    CFBooleanRef isActive_CFBoolRef = (CFBooleanRef)CFDictionaryGetValue(regProperties, CFSTR(vdStylusActive));
+    Boolean isActive = CFBooleanGetValue(isActive_CFBoolRef);
+    
+    currentSpec.isActive = isActive;
+    
+    if (!isActive) {
+        CFRelease(regProperties);
+        
+        return currentSpec;
+    }
+    
+    //CFShow(CFDictionaryGetValue(regProperties, CFSTR(vdStylusPressureKey)));
+       
+    //# get stylus pressure
+    CFNumberRef stylusPressure_CFNumberRef = (CFNumberRef)CFDictionaryGetValue(regProperties, CFSTR(vdStylusPressureKey));
+    int32_t stylusPressure;
+    CFNumberGetValue(stylusPressure_CFNumberRef, kCFNumberSInt32Type, &stylusPressure);
+    currentSpec.stylus_pressure = (stylusPressure * 1.0f)/65535;
+    
+    //# get barrel_pressure
+    CFNumberRef barrelPressure_CFNumberRef = (CFNumberRef)CFDictionaryGetValue(regProperties, CFSTR(vdBarrelPressureKey));
+    int32_t barrelPressure;
+    CFNumberGetValue(barrelPressure_CFNumberRef, kCFNumberSInt32Type, &barrelPressure);
+    currentSpec.barrel_pressure = (barrelPressure * 1.0f)/65535;
+    
+    printf("[Stylus Pressure: %f] [Barrel Pressure: %f]\n", currentSpec.stylus_pressure, currentSpec.barrel_pressure);
+    
+    CFRelease(regProperties);
+    return currentSpec;
+}
+
+
 static uint16 DEVICE_ID = 0x6;
 CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef cgEvent, void *refcon) {
     //# Do some sanity check.
@@ -165,7 +182,7 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
         //# set eventDeviceId
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventDeviceID, DEVICE_ID);
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventPointerType, NX_TABLET_POINTER_PEN);
-        CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventVendorPointerType, 0x0802); //# wacom defined general stylus //# TODO
+        CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventVendorPointerType, wcmGeneralStylus); 
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventCapabilityMask
                                     , NX_TABLET_CAPABILITY_DEVICEIDMASK | NX_TABLET_CAPABILITY_PRESSUREMASK |
                                     NX_TABLET_CAPABILITY_BUTTONSMASK | NX_TABLET_CAPABILITY_TANGENTIALPRESSUREMASK);
