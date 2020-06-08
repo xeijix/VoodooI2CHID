@@ -8,6 +8,7 @@
 
 #include "VoodooI2CTouchscreenHIDEventDriver.hpp"
 
+
 #define super VoodooI2CMultitouchHIDEventDriver
 
 OSDefineMetaClassAndStructors(VoodooI2CTouchscreenHIDEventDriver, VoodooI2CMultitouchHIDEventDriver);
@@ -111,6 +112,7 @@ void VoodooI2CTouchscreenHIDEventDriver::checkRotation(IOFixed* x, IOFixed* y) {
     }
 }
 
+
 bool VoodooI2CTouchscreenHIDEventDriver::checkStylus(AbsoluteTime timestamp, VoodooI2CMultitouchEvent event) {
     //  Check the current transducers for stylus operation, dispatch the pointer events and return true.
     //  At this time, Apple has removed all methods of handling additional information from the event driver.  Only x, y, buttonstate, and
@@ -125,13 +127,19 @@ bool VoodooI2CTouchscreenHIDEventDriver::checkStylus(AbsoluteTime timestamp, Voo
             IOFixed y = ((stylus->coordinates.y.value() * 1.0f) / stylus->logical_max_y) * 65535;
             IOFixed z = ((stylus->coordinates.z.value() * 1.0f) / stylus->logical_max_z) * 65535;
             IOFixed stylus_pressure = ((stylus->tip_pressure.value() * 1.0f) /stylus->pressure_physical_max) * 65535;
-            
+            IOFixed barrel_pressure = ((stylus->barrel_pressure.value() * 1.0f) / stylus->pressure_physical_max) * 65535;
             checkRotation(&x, &y);
+            
+            IOFixed twist = stylus->azi_alti_orientation.twist.value();
+            IOFixed tilt_x = stylus->tilt_orientation.x_tilt.value();
+            IOFixed tilt_y = stylus->tilt_orientation.y_tilt.value();
+            
             
             if (stylus->barrel_switch.value() != 0x0 && stylus->barrel_switch.value() !=0x2 && (stylus->barrel_switch.value()-barrel_switch_offset) != 0x2)
                 barrel_switch_offset = stylus->barrel_switch.value();
             if (stylus->eraser.value() != 0x0 && stylus->eraser.value() !=0x2 && (stylus->eraser.value()-eraser_switch_offset) != 0x4)
                 eraser_switch_offset = stylus->eraser.value();
+            
             
             stylus_buttons = stylus->tip_switch.value();
             
@@ -142,13 +150,35 @@ bool VoodooI2CTouchscreenHIDEventDriver::checkStylus(AbsoluteTime timestamp, Voo
             if (stylus->eraser.value() == 0x4 || (stylus->eraser.value() - eraser_switch_offset) == 0x4) {
                 stylus_buttons = 0x4;
             }
+
+            IOLog("===== DISPATCH EVENT (TYPE):[%d] (IDs):[%x, %x] \n\t (STYLUS PRESSURE): [%d] (BARREL_PRESSURE): [%d] \n\t (Z):[%d] \n\t (tip_switch): [%d] (buttons): \n\t [%x] (twist): [%d] (tilt): [%d, %d]\n", stylus->type, stylus->id, stylus->secondary_id, stylus_pressure, stylus->barrel_pressure.value(), z, stylus->tip_switch.value(), stylus_buttons, twist, tilt_x, tilt_y);
             
-            dispatchDigitizerEventWithTiltOrientation(timestamp, stylus->secondary_id, stylus->type, stylus->in_range, stylus_buttons, x, y, z, stylus_pressure, stylus->barrel_pressure.value(), stylus->azi_alti_orientation.twist.value(), stylus->tilt_orientation.x_tilt.value(), stylus->tilt_orientation.y_tilt.value());
+            IOOptionBits options = kDigitizerCapabilityPressure
+                | kDigitizerCapabilityTiltX
+                | kDigitizerCapabilityTiltY
+                | kDigitizerCapabilityTwist
+            ;
+            //# NOTE: these options aren't used
+            
+            //# Exfiltrate stylus properties via the IORegistry
+            setProperty(vdBarrelPressureKey, barrel_pressure, sizeof(IOFixed) * 8);
+            setProperty(vdStylusPressureKey, stylus_pressure, sizeof(IOFixed) * 8);
+            setProperty(vdStylusTwistKey, twist, sizeof(IOFixed) * 8);
+            setProperty(vdStylusTiltXKey, tilt_x, sizeof(IOFixed) * 8);
+            setProperty(vdStylusTiltYKey, tilt_y, sizeof(IOFixed) * 8);
+            
+            setProperty(vdStylusActive, true);
+            
+            
+            dispatchDigitizerEventWithTiltOrientation(timestamp, stylus->secondary_id, stylus->type, stylus->in_range, stylus_buttons, x, y, z, stylus_pressure, barrel_pressure, twist, tilt_x, tilt_y, options);
+        
             
             return true;
         }
     }
     
+    //# Exfiltrate stylus properties via the IORegistry
+    setProperty(vdStylusActive, false);
     return false;
 }
 
@@ -267,6 +297,7 @@ bool VoodooI2CTouchscreenHIDEventDriver::handleStart(IOService* provider) {
     
     return true;
 }
+
 
 void VoodooI2CTouchscreenHIDEventDriver::handleStop(IOService* provider) {
     if (timer_source) {

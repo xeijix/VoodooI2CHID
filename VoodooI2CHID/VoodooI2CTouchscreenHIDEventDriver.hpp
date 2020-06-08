@@ -16,6 +16,7 @@
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/graphics/IOFramebuffer.h>
 #include <IOKit/graphics/IODisplay.h>
+#include "SharedData.h"
 
 #include "../../../Multitouch Support/VoodooI2CDigitiserStylus.hpp"
 #include "../../../Multitouch Support/VoodooI2CMultitouchInterface.hpp"
