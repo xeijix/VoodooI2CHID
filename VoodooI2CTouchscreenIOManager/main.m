@@ -142,7 +142,6 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
     
     //printf("type: %x, [mv: %x, dn: %x, drg: %x]", type, kCGEventMouseMoved, kCGEventLeftMouseDown, kCGEventLeftMouseDragged);
     
-    
     /*
     CGPoint location = CGEventGetLocation(event);
     double_t TabletPointPressure = CGEventGetDoubleValueField(event, kCGTabletEventPointPressure);
@@ -150,20 +149,6 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
     double_t MousePressure = CGEventGetDoubleValueField(event, kCGMouseEventPressure);
     int64_t TabletEventPointZ = CGEventGetIntegerValueField(event, kCGTabletEventPointZ);
     */
-    
-    
-    // Set the modified keycode field in the event.
-    //CGEventSetIntegerValueField(event, kCGKeyboardEventKeycode, (int64_t)keycode);
-    
-    //double stylus_pressure = getPressure();
-        //# NOTE: kCGTabletEventPointPressure isn't working, so we need mouseeventpressure
-        //# NOTE: we are getting pressure from mouse pressure but only for the demo cocoa app
-    
-    //kCGTabletProximityEventDeviceID
-    //int64_t tabletEventDeviceID = CGEventGetIntegerValueField(cgEvent, kCGTabletEventDeviceID);
-    //int64_t tabletProximityEventDeviceID = CGEventGetIntegerValueField(cgEvent, kCGTabletProximityEventDeviceID);
-    //printf("[tabletEventDeviceID: %x] [tabletProximityEventDeviceID: %x]\n", tabletEventDeviceID, tabletProximityEventDeviceID);
-    
     
     struct stylusSpec currentSpec = getStylusSpec();
     if (!currentSpec.isActive) {
