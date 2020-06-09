@@ -151,8 +151,9 @@ bool VoodooI2CTouchscreenHIDEventDriver::checkStylus(AbsoluteTime timestamp, Voo
                 stylus_buttons = 0x4;
             }
 
+#if DEBUG
             IOLog("===== DISPATCH EVENT (TYPE):[%d] (IDs):[%x, %x] \n\t (STYLUS PRESSURE): [%d] (BARREL_PRESSURE): [%d] \n\t (Z):[%d] \n\t (tip_switch): [%d] (buttons): \n\t [%x] (twist): [%d] (tilt): [%d, %d]\n", stylus->type, stylus->id, stylus->secondary_id, stylus_pressure, stylus->barrel_pressure.value(), z, stylus->tip_switch.value(), stylus_buttons, twist, tilt_x, tilt_y);
-            
+#endif
             IOOptionBits options = kDigitizerCapabilityPressure
                 | kDigitizerCapabilityTiltX
                 | kDigitizerCapabilityTiltY
