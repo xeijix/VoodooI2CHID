@@ -12,5 +12,9 @@
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
+	<key>Crashed</key>
+	<true/>
+	<key>Nice</key>
+	<integer>-20</integer>
 </dict>
 </plist>
