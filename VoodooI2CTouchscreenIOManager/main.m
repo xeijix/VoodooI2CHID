@@ -103,7 +103,7 @@ static struct stylusSpec getStylusSpec() {
     if (!serviceObject) {
         if (!cacheDevice()) {
             //# for some reason the device is not available, so we try to retrieve it again
-            
+            //# if that fails, we return the currentSpec
             return currentSpec;
         }
     }
@@ -141,7 +141,7 @@ static struct stylusSpec getStylusSpec() {
     CFNumberGetValue(barrelPressure_CFNumberRef, kCFNumberSInt32Type, &barrelPressure);
     currentSpec.barrel_pressure = (barrelPressure * 1.0f)/65535;
     
-    printf("[Stylus Pressure: %f] [Barrel Pressure: %f]\n", currentSpec.stylus_pressure, currentSpec.barrel_pressure);
+    //printf("[Stylus Pressure: %f] [Barrel Pressure: %f]\n", currentSpec.stylus_pressure, currentSpec.barrel_pressure);
     
     CFRelease(regProperties);
     return currentSpec;
@@ -155,6 +155,12 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
     if (type != kCGEventMouseMoved
         && type != kCGEventLeftMouseDown
         && type != kCGEventLeftMouseDragged
+        
+        && type != kCGEventOtherMouseDragged
+        && type != kCGEventOtherMouseDown
+        
+        && type != kCGEventRightMouseDragged
+        && type != kCGEventRightMouseDown
     ) return cgEvent;
     
     //printf("type: %x, [mv: %x, dn: %x, drg: %x]", type, kCGEventMouseMoved, kCGEventLeftMouseDown, kCGEventLeftMouseDragged);
@@ -170,18 +176,25 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
     struct stylusSpec currentSpec = getStylusSpec();
     if (!currentSpec.isActive) {
         //# stylus isn't active so we exit early
-        printf("Stylus isn't active, exiting early\n");
+        //printf("Stylus isn't active, exiting early\n");
         return cgEvent;
     }
     
-    printf("Stylus is active... continuing\n");
+    
     
     
     if (type == kCGEventMouseMoved) {
         CGEventSetIntegerValueField(cgEvent, kCGMouseEventSubtype, kCGEventMouseSubtypeTabletProximity);
         //# set eventDeviceId
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventDeviceID, DEVICE_ID);
+        
+        //# TODO need to set pointer_eraser for 0x4
+        //# NOTE:setting pointer type doesnt working
+    
+        //# NOTE: I don't think this matters
+        //# at least even setting POINTER_ERASER doesn't cause applications to recognize it as an eraser
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventPointerType, NX_TABLET_POINTER_PEN);
+        
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventVendorPointerType, wcmGeneralStylus); 
         CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventCapabilityMask
                                     , NX_TABLET_CAPABILITY_DEVICEIDMASK | NX_TABLET_CAPABILITY_PRESSUREMASK |
@@ -190,11 +203,35 @@ CGEventRef myCGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef
     } else {
         CGEventSetIntegerValueField(cgEvent, kCGMouseEventSubtype, kCGEventMouseSubtypeTabletPoint);
         CGEventSetIntegerValueField(cgEvent, kCGTabletEventDeviceID, DEVICE_ID);
+        
         CGEventSetDoubleValueField(cgEvent, kCGMouseEventPressure, currentSpec.stylus_pressure);
             //# NOTE: don't need this but still setting it in case certain applications expect a mouseEventPressure
             //# and not tabletEventPointPressure
         CGEventSetDoubleValueField(cgEvent, kCGTabletEventPointPressure, currentSpec.stylus_pressure);
         CGEventSetDoubleValueField(cgEvent, kCGTabletEventTangentialPressure, currentSpec.barrel_pressure);
+    
+        //# NOTE: I don't think some applications recognize the eraser
+        //# Setting kCGTabletEventPointButtons mask. Note: this doesn't seem to be used
+        //# The mouse button has valid numbers, but I suspect that the consumers
+        //# rely on the event type instead
+        //# NOTE: setting kCGTabletEventPointButtons seems to cause pressure to be ignored
+        /*
+        int16_t MouseButton = CGEventGetIntegerValueField(cgEvent, kCGMouseEventButtonNumber);
+        int16_t TabletButton = (MouseButton == kCGMouseButtonLeft)?     0x1
+                            :(MouseButton == kCGMouseButtonRight)?      0x4
+                            :(MouseButton == kCGMouseButtonCenter)?     0x2
+                            :0
+        ;
+
+        CGEventSetIntegerValueField(cgEvent, kCGTabletEventPointButtons, TabletButton);
+        */
+        
+        //# NOTE: this doesn't work either
+        /*
+        if ((type == kCGEventOtherMouseDown || type == kCGEventOtherMouseDragged) && MouseButton == 0x2) {
+            CGEventSetIntegerValueField(cgEvent, kCGTabletProximityEventPointerType, NX_TABLET_POINTER_ERASER); //# this prob doesn't work
+        }
+        */
         
         //# TODO: NOTE: setting these values works, but my device does not support tilt so I cannot test
         //CGEventSetDoubleValueField(cgEvent, kCGTabletEventTiltX, 0.1);
@@ -242,7 +279,14 @@ int main(int argc, const char * argv[]) {
         cacheDevice();
         
 
-        CGEventMask eventMask = CGEventMaskBit(kCGEventMouseMoved) |
+        CGEventMask eventMask = CGEventMaskBit(kCGEventOtherMouseDown) |
+                    CGEventMaskBit(kCGEventOtherMouseDragged) |
+        
+                    CGEventMaskBit(kCGEventRightMouseDown) |
+                    CGEventMaskBit(kCGEventRightMouseDragged) |
+        
+        
+                    CGEventMaskBit(kCGEventMouseMoved) |
                     CGEventMaskBit(kCGEventLeftMouseDown) |
                     CGEventMaskBit(kCGEventLeftMouseDragged);
         
